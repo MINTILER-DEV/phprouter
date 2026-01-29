@@ -46,6 +46,24 @@ class Router
      * @param callable|array $handler
      * @return self
      */
+    
+    private function normalizePath(string $path): string
+    {
+        // remove query string if somehow present
+        $path = parse_url($path, PHP_URL_PATH);
+
+        // collapse multiple slashes
+        $path = preg_replace('#/+#', '/', $path);
+
+        // root stays root
+        if ($path === '/') {
+            return '/';
+        }
+
+        // ensure trailing slash
+        return rtrim($path, '/') . '/';
+    }
+    
     public function get(string $path, $handler): self
     {
         return $this->addRoute('GET', $path, $handler);
@@ -152,6 +170,7 @@ class Router
      */
     private function addRoute(string $method, string $path, $handler): self
     {
+        $path = $this->normalizePath($path);
         // Apply group prefix if any
         $path = $this->applyGroupPrefix($path);
         
@@ -210,7 +229,9 @@ class Router
     public function dispatch()
     {
         $method = $_SERVER['REQUEST_METHOD'];
-        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $uri = $this->normalizePath(
+            parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)
+        );
         
         // Handle PUT/PATCH/DELETE methods with method override
         if ($method === 'POST' && isset($_POST['_method'])) {
